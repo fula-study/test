@@ -1,0 +1,25 @@
+-- public.newtable definition
+
+-- Drop table
+
+-- DROP TABLE public.newtable;
+
+CREATE TABLE public.newtable (
+	column1 text NOT NULL,
+	column2 int4 NULL,
+	column3 text NULL,
+	column4 timestamp NULL
+);
+
+
+
+
+
+colum1,colum2,colum3,colum4
+|‚ ‚¢‚¤‚¦‚¨|,||,|‚ ‚¢‚¤‚¦‚¨|,||
+
+
+
+
+
+\copy newtable from 'C:\test.csv' with(format CSV, FORCE_NULL(column2,column4), HEADER true, delimiter ',',  quote '|');
