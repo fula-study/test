@@ -1,0 +1,130 @@
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+
+
+
+    <script>
+        $(document).ready(function() {
+            const redmineUrl = 'http://192.168.56.99:8081/redmine';
+            const apiKey = '0c4dde51801e195214cafa069d0ec0df07da18cf';
+            const userId = $('#div#loggedas').find('a.user').attr('href'); // ユーザーIDを設定してください
+            const days = 3;
+
+            // 日付を計算する
+            const today = new Date();
+            const pastDate = new Date(today);
+            pastDate.setDate(today.getDate() - days);
+
+$('div#my-page').before('<table id="ticketTable"><thead><tr><th>#</th><th>プロジェクト</th><th>題名</th><th>最終コメント</th><th>更新者</th><th>更新日</th></tr></thead><tbody></tbody></table>');
+
+            // 自分に関連するチケットを取得する
+            $.ajax({
+                url: `${redmineUrl}/issues.json`,
+                method: 'GET',
+                headers: {
+                    'X-Redmine-API-Key': apiKey
+                },
+                data: {
+                    assigned_to_id: userId
+                },
+                success: function(response) {
+                    const issues = response.issues;
+                    const recentCommentsIssues = [];
+                    let completedRequests = 0;
+
+                    issues.forEach(issue => {
+                        // 各チケットの詳細を取得するリクエストを送信
+                        $.ajax({
+                            url: `${redmineUrl}/issues/${issue.id}.json`,
+                            method: 'GET',
+                            headers: {
+                                'X-Redmine-API-Key': apiKey
+                            },
+                            data: {
+                                include: 'journals'
+                            },
+                            success: function(issueDetailResponse) {
+                                const issueDetail = issueDetailResponse.issue;
+                                console.log(`Issue Detail for ${issue.id}:`, issueDetail);
+
+                                const journals = issueDetail.journals || [];
+                                const hasRecentComment = journals.some(journal => {
+                                    const journalDate = new Date(journal.created_on);
+                                    return journalDate >= pastDate;
+                                });
+
+                                if (hasRecentComment) {
+                                    const latestJournal = journals[journals.length - 1];
+                                    const latestComment = latestJournal.notes || "No comment available";
+                                    issueDetail.latestComment = latestComment;
+                                    issueDetail.latestUpdater = latestJournal.user.name;
+                                    recentCommentsIssues.push(issueDetail);
+                                }
+
+                                // リクエストが完了したらカウントを増やす
+                                completedRequests++;
+                                // 全てのリクエストが完了したら表示を更新
+                                if (completedRequests === issues.length) {
+                                    displayIssues(recentCommentsIssues);
+                                }
+                            },
+                            error: function(error) {
+                                console.error(`Error fetching issue details for ${issue.id}:`, error);
+                                // エラーハンドリングも含めてカウントを増やす
+                                completedRequests++;
+                                if (completedRequests === issues.length) {
+                                    displayIssues(recentCommentsIssues);
+                                }
+                            }
+                        });
+                    });
+                },
+                error: function(error) {
+                    console.error('Error fetching issues:', error);
+                }
+            });
+
+            // チケットを画面に表示する関数
+            function displayIssues(issues) {
+                const ticketTableBody = $('#ticketTable tbody');
+                ticketTableBody.empty();
+                if (issues.length === 0) {
+                    ticketTableBody.append('<tr><td colspan="6">3日以内にコメントされたチケットはありません</td></tr>');
+                } else {
+                    issues.forEach(issue => {
+                        const issueRow = $('<tr></tr>');
+                        issueRow.append(`<td><a href="${redmineUrl}/issues/${issue.id}?tab=notes">${issue.id}</a></td>`);
+                        issueRow.append(`<td><a href="${redmineUrl}/projects/${issue.project.id}">${issue.project.name}</a></td>`);
+                        issueRow.append(`<td>${issue.subject}</td>`);
+                        issueRow.append(`<td>${issue.latestComment}</td>`);
+                        issueRow.append(`<td>${issue.latestUpdater}</td>`);
+                        issueRow.append(`<td>${formatDate(issue.updated_on)}</td>`);
+                        ticketTableBody.append(issueRow);
+                    });
+                }
+            }
+
+            // 日付フォーマット関数
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                const year = date.getFullYear();
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                const day = ('0' + date.getDate()).slice(-2);
+                const hours = ('0' + date.getHours()).slice(-2);
+                const minutes = ('0' + date.getMinutes()).slice(-2);
+                const seconds = ('0' + date.getSeconds()).slice(-2);
+                return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+            }
+        });
+    </script>
