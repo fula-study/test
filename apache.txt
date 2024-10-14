@@ -1,0 +1,62 @@
+tail: ログファイルの最後の数行を確認する
+	tail -f /var/log/apache2/access.log
+
+less: ログをスクロールしながら確認する
+	less /var/log/apache2/access.log
+
+grep + wc -l: 特定のパターンに一致する行数をカウント
+	grep "GET" /var/log/apache2/access.log | wc -l
+	※これは、GETリクエストが何回発生したかをカウントします。
+
+grep: 特定のIPアドレスからのアクセスを抽出
+	grep "192.168.1.100" /var/log/apache2/access.log
+
+grep + awk: 特定のIPアドレスのリクエスト先URLを表示
+	grep "192.168.1.100" /var/log/apache2/access.log | awk '{print $7}'
+
+awk: ステータスコードの集計（200、404、500など）
+	awk '{print $9}' /var/log/apache2/access.log | sort | uniq -c | sort -nr
+	※$9は9列目を指し
+	HTTPステータスコードを表しているので、それを集計します。
+
+awk: 時間帯別アクセス数の集計
+	awk '{print $4}' /var/log/apache2/access.log | cut -d: -f2 | sort | uniq -c
+	※これは、時間帯ごとのリクエスト数を表示します（例えば、00時台、01時台など）。
+
+awk: 時間帯別（分単位）アクセス数の集計
+	awk '$4 ~ /09\/Oct\/2024:09:/ {print $4}' /var/log/apache2/access.log | cut -d: -f2,3 | sort | uniq -c
+	
+awk: 時間帯別（秒単位）アクセス数の集計
+	awk '$4 ~ /09\/Oct\/2024:09:/ {print $4}' /var/log/apache2/access.log | cut -d: -f2,3,4 | sort | uniq -c
+
+
+grep: エラーログから特定のメッセージを抽出
+	grep "404" /var/log/apache2/error.log
+	※404エラーを探して表示します。
+
+tail + grep: エラーログをリアルタイムに監視しつつ特定のエラーを抽出
+	tail -f /var/log/apache2/error.log | grep "500"
+
+awk + sort: アクセス数が多いIPアドレスを確認
+	awk '{print $1}' /var/log/apache2/access.log | sort | uniq -c | sort -nr | head
+	※最もアクセス数が多いIPアドレスの上位10件を表示します。
+
+awk + sort: 各URLのアクセス数を集計
+	awk '{print $7}' /var/log/apache2/access.log | sort | uniq -c | sort -nr | head
+	※7列目はリクエストURLを表しているため、各URLのリクエスト数を集計します。
+
+
+MaxClients 超過の検出方法
+	grep -i "MaxRequestWorkers" /var/log/apache2/error.log
+	※エラーログのサンプル　[error] server reached MaxRequestWorkers setting, consider raising the MaxRequestWorkers setting
+
+特定の時間帯のリクエスト数
+	grep -c '/09\/Oct\/2024:09:/' /var/log/httpd/access_log
+
+Apacheの現在のプロセス数確認
+	ps aux | grep httpd | wc -l
+
+リアルタイム接続確認（80ポートの確立された接続数）
+	netstat -an | grep ':80|:443' | grep ESTABLISHED | wc -l
+	↓netstatが使えない場合
+	ss -ant | grep -E ':80|:443' | grep ESTABLISHED | wc -l
